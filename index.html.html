@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>STK策略專屬｜爆分選房系統</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+    margin: 0;
+    padding: 16px 12px 100px;
+    font-family: "Microsoft JhengHei", Arial, sans-serif;
+    background: #000;
+    color: #fff;
+    overflow-x: hidden;
+    text-align: center;
+}
+
+/* ===== Matrix ===== */
+#bgCanvas {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+}
+
+/* ===== Logo ===== */
+.logo {
+    position: fixed;
+    top: 8px;
+    z-index: 10;
+    opacity: 0;
+    transform: scale(0.92);
+    transition: opacity .8s ease, transform .8s ease;
+    pointer-events: none;
+}
+
+.logo.show {
+    opacity: 1;
+    transform: scale(1);
+}
+
+#logoLeft {
+    width: 150px;
+    left: 50%;
+    transform: translateX(-50%) scale(0.92);
+}
+
+#logoRight {
+    width: 170px;
+    right: 50%;
+    transform: translateX(50%) scale(0.92);
+}
+
+/* ===== Title ===== */
+h1 {
+    margin-top: 90px;
+    font-size: 22px;
+    font-family: Consolas, monospace;
+    color: #ffd08a;
+}
+
+/* ===== Buttons ===== */
+button {
+    width: 90%;
+    max-width: 280px;
+    padding: 12px;
+    margin: 8px auto;
+    border-radius: 14px;
+    border: none;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(180deg,#ffb347,#cc6a00);
+}
+
+/* ===== Loading ===== */
+#dataPanel {
+    width: 90%;
+    max-width: 360px;
+    margin: 16px auto;
+    padding: 14px;
+    background: rgba(0,0,0,.7);
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    text-align: left;
+}
+
+#progressContainer {
+    width: 80%;
+    height: 16px;
+    margin: 10px auto;
+    background: rgba(255,255,255,.2);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+#progressBar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg,#ff9f1c,#7a3f00);
+}
+
+/* ===== Slots ===== */
+.slot-container {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 24px;
+}
+
+.slot {
+    padding: 16px;
+    border-radius: 14px;
+    background: rgba(0,0,0,.82);
+    display: flex;
+    justify-content: space-between;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: .4s;
+}
+
+.slot.show {
+    opacity: 1;
+    transform: none;
+}
+
+/* ===== Jackpot ===== */
+@keyframes megaJackpot {
+    0%,100% {
+        transform: scale(1);
+        filter: saturate(1.2);
+    }
+    50% {
+        transform: scale(1.15);
+        filter: saturate(1.6);
+    }
+}
+</style>
+</head>
+
+<body>
+<canvas id="bgCanvas"></canvas>
+
+<img src="logo.png" class="logo" id="logoLeft">
+<img src="logo2.png" class="logo" id="logoRight">
+
+<h1>STK策略專屬｜爆分選房系統</h1>
+
+<button onclick="refresh()">五分鐘換一次</button>
+
+<div id="dataPanel"></div>
+<div id="progressContainer"><div id="progressBar"></div></div>
+<div id="slots" class="slot-container"></div>
+
+<script>
+/* ===== Matrix (Mobile Slow) ===== */
+const canvas = document.getElementById("bgCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+let cols = Math.floor(canvas.width / 20);
+let drops = Array(cols).fill(1);
+
+function drawMatrix() {
+    ctx.fillStyle = "rgba(0,0,0,.12)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = "16px monospace";
+    for (let i = 0; i < drops.length; i++) {
+        ctx.fillStyle = i % 2 ? "#ff9f1c" : "#7a3f00";
+        ctx.fillText(Math.random() > 0.5 ? "1" : "0", i * 20, drops[i] * 20);
+        if (drops[i] * 20 > canvas.height && Math.random() > 0.98) drops[i] = 0;
+        drops[i]++;
+    }
+    setTimeout(drawMatrix, 100);
+}
+drawMatrix();
+
+/* ===== App ===== */
+const panel = document.getElementById("dataPanel");
+const bar = document.getElementById("progressBar");
+const slots = document.getElementById("slots");
+
+async function fakeLoading() {
+    panel.innerHTML = "";
+    const lines = [
+        "Initializing room database...",
+        "Calculating burst model...",
+        "Predicting output..."
+    ];
+    for (let l of lines) {
+        let d = document.createElement("div");
+        panel.appendChild(d);
+        let p = 0;
+        await new Promise(res => {
+            let t = setInterval(() => {
+                p += Math.random() * 15;
+                if (p >= 100) {
+                    p = 100;
+                    clearInterval(t);
+                    setTimeout(res, 120);
+                }
+                d.textContent = l + " (" + Math.floor(p) + "%)";
+                bar.style.width = p + "%";
+            }, 40);
+        });
+    }
+}
+
+function genSlots() {
+    let a = [];
+    for (let i = 0; i < 2; i++) a.push({ t: "top", p: 88 + Math.random()*5 | 0 });
+    while (a.length < 8) a.push({ t: "normal", p: 55 + Math.random()*20 | 0 });
+    return a;
+}
+
+async function refresh() {
+    document.querySelectorAll('.logo').forEach(l=>l.classList.remove('show'));
+    await fakeLoading();
+    document.querySelectorAll('.logo').forEach(l=>l.classList.add('show'));
+
+    slots.innerHTML = "";
+    genSlots().forEach((d,i)=>{
+        let s = document.createElement("div");
+        s.className = "slot";
+        if (d.t === "top") {
+            s.style.color = "#ffd08a";
+            s.style.boxShadow = "0 0 25px currentColor";
+            s.style.animation = "megaJackpot 1.8s infinite";
+        }
+        s.innerHTML = `<span>第 ${Math.floor(Math.random()*3000)} 房</span><span>${d.p}%</span>`;
+        slots.appendChild(s);
+        setTimeout(()=>s.classList.add("show"), i*60);
+    });
+}
+
+refresh();
+</script>
+</body>
+</html>
